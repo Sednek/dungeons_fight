@@ -21,7 +21,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 
     private Bitmap background;
-    private Rect bgSrc, bgDst;
 
 
     // HUD-краска и кэш строк
@@ -31,6 +30,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private float circleX = 0f;
     private float speedPxPerFrameAt60 = 3.0f;
+
+    // Камера
+    private float camX = 0f;
+    private static final float CAM_LERP = 0.12f;   // плавность следования камеры
+
+    // Background
+    private Bitmap bgTile;     // seamless_bg.png
+    private int bgW, bgH;
+    private static final float BG_PARALLAX = 0.6f; // фон движется медленнее камеры
 
     public GameView(Context context) {
         super(context);
@@ -69,29 +77,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 } catch (InterruptedException ignored) {}
             }
         }
-
-        if (background != null) {
-            background.recycle();
-            background = null;
-            bgSrc = null;
-            bgDst = null;
-        }
     }
 
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
-        if (background == null) {
-            background = BitmapFactory.decodeResource(getResources(), R.drawable.background_forest);
-            bgSrc = new Rect(0, 0, background.getWidth(), background.getHeight());
+        if (bgTile == null) {
+            bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
+            bgW = bgTile.getWidth();
+            bgH = bgTile.getHeight();
         }
-
-        float scale = Math.max(width / (float) background.getWidth(), height / (float) background.getHeight());
-        int w = Math.round(background.getWidth() * scale);
-        int h = Math.round(background.getHeight() * scale);
-        int left = (width - w) / 2;
-        int top  = (height - h) / 2;
-        bgDst = new Rect(left, top, left + w, top + h);
     }
 
     // Логика
@@ -111,6 +106,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if (player != null) {
             player.update(dtSeconds);
         }
+
+        if (player != null) {
+            float target = player.getX() - getWidth() * 0.5f; // держим игрока по центру экрана
+            camX += (target - camX) * CAM_LERP;               // плавное следование
+        }
     }
 
     @Override
@@ -118,19 +118,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         super.draw(canvas);
         if (canvas == null) return;
 
-        if (background != null && bgSrc != null && bgDst != null) {
-            canvas.drawBitmap(background, bgSrc, bgDst, null);
-        } else {
-            canvas.drawColor(Color.GRAY);
-        }
+        drawLoopedBackground(canvas);
 
         if (gameLoop != null) {
             canvas.drawText(fpsText + "   " + upsText, 32, 64, hudPaint);
         }
 
-        if (player != null) {
-            player.draw(canvas);
-        }
+        if (player != null) player.draw(canvas, camX);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -154,5 +148,33 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
         return true;
     }
+
+    private void drawLoopedBackground(Canvas canvas) {
+        if (bgTile == null) {
+            canvas.drawColor(Color.BLACK);
+            return;
+        }
+
+        int screenWidth = getWidth();
+        int screenHeight = getHeight();
+
+        // Масштаб по высоте
+        float scale = (float) screenHeight / bgTile.getHeight();
+        int scaledWidth = Math.round(bgTile.getWidth() * scale);
+        int scaledHeight = screenHeight; // ровно по высоте экрана
+
+        // Параллакс
+        float scroll = camX * BG_PARALLAX;
+        int startX = (int) (-(scroll % scaledWidth));
+        if (startX > 0) startX -= scaledWidth;
+
+        // Повторяем фон по горизонтали
+        for (int x = startX; x < screenWidth; x += scaledWidth) {
+            Rect srcRect = new Rect(0, 0, bgTile.getWidth(), bgTile.getHeight());
+            Rect dstRect = new Rect(x, 0, x + scaledWidth, scaledHeight);
+            canvas.drawBitmap(bgTile, srcRect, dstRect, null);
+        }
+    }
+
 
 }

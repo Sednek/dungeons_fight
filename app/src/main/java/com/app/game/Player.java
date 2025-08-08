@@ -32,6 +32,8 @@ public class Player {
     // масштаб спрайта при выводе
     private final float scale;
 
+
+
     public Player(Resources res, float startX, float startY, float speedPxPerSec, float scale) {
         this.x = startX;
         this.y = startY;
@@ -53,6 +55,12 @@ public class Player {
         if (dirX != 0) lastDirX = dirX;
     }
 
+    public float getX() { return x; }
+    public void setX(float v) { x = v; }
+    public void setY(float v) { y = v; }
+    public int getDrawWidth()  { return Math.round(frameW * scale); }
+    public int getDrawHeight() { return Math.round(frameH * scale); }
+
     public void update(float dt) {
         // движение
         x += dirX * speed * dt;
@@ -67,24 +75,18 @@ public class Player {
         }
     }
 
-    public void draw(Canvas canvas) {
-        Bitmap sheet;
-        if (dirX < 0) {
-            sheet = runLeft;
-        } else if (dirX > 0) {
-            sheet = runRight;
-        } else {
-            sheet = (lastDirX < 0) ? idleLeft : idleRight;
-        }
+    public void draw(Canvas canvas, float camX) {
+        android.graphics.Bitmap sheet;
+        if (dirX < 0)      sheet = runLeft;
+        else if (dirX > 0) sheet = runRight;
+        else               sheet = (lastDirX < 0) ? idleLeft : idleRight;
 
-        // исходный кадр
         int sx = frameIndex * frameW;
         src.set(sx, 0, sx + frameW, frameH);
 
-        // целевой прямоугольник
         int dw = Math.round(frameW * scale);
         int dh = Math.round(frameH * scale);
-        int dx = Math.round(x - dw / 2f);
+        int dx = Math.round(x - camX - dw / 2f);
         int dy = Math.round(y - dh / 2f);
         dst.set(dx, dy, dx + dw, dy + dh);
 
