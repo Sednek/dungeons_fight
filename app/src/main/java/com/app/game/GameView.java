@@ -1,11 +1,11 @@
 package com.app.game;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Rect;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -32,8 +32,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private float circleX = 0f;
     private float speedPxPerFrameAt60 = 3.0f;
 
-    private float fps = 0;
-
     public GameView(Context context) {
         super(context);
         getHolder().addCallback(this);
@@ -48,9 +46,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {
+    public void surfaceCreated(@NonNull SurfaceHolder holder) {
         // scale = во сколько раз увеличить кадр спрайта на экране
-        float scale = 10f;
+        float scale = 5f;
         player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, scale);
 
         gameLoop = new GameLoop(getHolder(), this);
@@ -60,7 +58,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 
     @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
+    public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         if (gameLoop != null) {
             gameLoop.setRunning(false);
             boolean retry = true;
@@ -135,6 +133,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
