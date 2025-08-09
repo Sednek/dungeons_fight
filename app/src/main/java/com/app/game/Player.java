@@ -116,4 +116,12 @@ public class Player {
         int h = Math.max(1, Math.round(src.getHeight() * scale));
         return Bitmap.createScaledBitmap(src, w, h, false);
     }
+
+    public void dispose() {
+        if (idleLeft != null && !idleLeft.isRecycled()) idleLeft.recycle();
+        if (idleRight != null && !idleRight.isRecycled()) idleRight.recycle();
+        if (runLeft != null && !runLeft.isRecycled()) runLeft.recycle();
+        if (runRight != null && !runRight.isRecycled()) runRight.recycle();
+    }
+
 }

@@ -77,7 +77,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         float scale = 5f;
         player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, scale);
 
-        gameLoop = new GameLoop(getHolder(), this);
+        float refreshRate = (getDisplay() != null) ? getDisplay().getRefreshRate() : 60f;
+        gameLoop = new GameLoop(getHolder(), this, refreshRate);
         gameLoop.setRunning(true);
         gameLoop.start();
     }
@@ -86,15 +87,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         if (gameLoop != null) {
-            gameLoop.setRunning(false);
-            boolean retry = true;
-            while (retry) {
-                try {
-                    gameLoop.join();
-                    retry = false;
-                } catch (InterruptedException ignored) {
-                }
-            }
+            gameLoop.requestStopAndJoin();
+            gameLoop = null;
+        }
+        // освобождение больших битмапов
+        if (bgScaled != null) {
+            bgScaled.recycle();
+            bgScaled = null;
+        }
+        if (bgTile != null) {
+            bgTile.recycle();
+            bgTile = null;
+        }
+        if (groundTileScaled != null) {
+            groundTileScaled.recycle();
+            groundTileScaled = null;
+        }
+        if (groundTile != null) {
+            groundTile.recycle();
+            groundTile = null;
+        }
+        if (player != null){
+            player.dispose();
         }
     }
 
@@ -111,11 +125,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             int screenH = getHeight();
             int srcW = bgTile.getWidth();
             int srcH = bgTile.getHeight();
+
             bgW = srcW;
             bgH = srcH;
+
             float kbg = screenH / (float) srcH;
+
             bgScaledW = Math.max(1, Math.round(srcW * kbg));
             bgScaledH = screenH;
+
+            if (bgScaled != null) {
+                bgScaled.recycle();
+                bgScaled = null;
+            }
+
             bgScaled = Bitmap.createScaledBitmap(bgTile, bgScaledW, bgScaledH, false);
         }
 
@@ -135,6 +158,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             float kg = groundDrawHeightPx / (float) groundTileHeight;
             int gW = Math.max(1, Math.round(groundTileWidth * kg));
             int gH = Math.max(1, Math.round(groundTileHeight * kg));
+
+            if (groundTileScaled != null) {
+                groundTileScaled.recycle();
+                groundTileScaled = null;
+            }
+
             groundTileScaled = Bitmap.createScaledBitmap(groundTile, gW, gH, false);
         }
 // Линия пола = нижняя граница экрана
@@ -236,5 +265,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-
+    public void stopLoop() {
+        if (gameLoop != null) {
+            gameLoop.requestStopAndJoin();
+            gameLoop = null;
+        }
+    }
 }

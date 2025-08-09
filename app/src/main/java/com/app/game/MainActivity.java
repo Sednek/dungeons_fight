@@ -16,7 +16,8 @@ public class MainActivity extends AppCompatActivity {
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
-    @Override protected void onCreate(Bundle savedInstanceState) {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         enableImmersive();
 
@@ -26,8 +27,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(gameView);
     }
 
-    @Override public void onWindowFocusChanged(boolean hasFocus) {
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) enableImmersive();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (gameView != null) gameView.stopLoop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
     }
 }
