@@ -20,9 +20,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private Player player;
 
 
-    private Bitmap background;
-
-
     // HUD-краска и кэш строк
     private final android.graphics.Paint hudPaint = new android.graphics.Paint();
     private String fpsText = "FPS: 0";
@@ -38,7 +35,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     // Background
     private Bitmap bgTile;     // seamless_bg.png
     private int bgW, bgH;
-    private static final float BG_PARALLAX = 0.6f; // фон движется медленнее камеры
+    private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
+
+    //Ground tile
+    private Bitmap groundTile;
+    private int groundTileWidth, groundTileHeight;
+
+    private int groundDrawHeightPx;
+    private float groundY;
+    private static final float GROUND_PARALLAX = 1.0f;
+
+    private static final int GROUND_SCALE = 2;
+
+    private static final int GROUND_OFFSET_Y = 70; // на сколько пикселей опущен тайл
+
+    private final Rect groundSrc = new Rect();
+    private final Rect groundDst = new Rect();
 
     public GameView(Context context) {
         super(context);
@@ -74,7 +86,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 try {
                     gameLoop.join();
                     retry = false;
-                } catch (InterruptedException ignored) {}
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }
@@ -87,6 +100,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             bgW = bgTile.getWidth();
             bgH = bgTile.getHeight();
         }
+
+        if (groundTile == null) {
+            groundTile = BitmapFactory.decodeResource(getResources(), R.drawable.ground_tile);
+            groundTileWidth = groundTile.getWidth();
+            groundTileHeight = groundTile.getHeight();
+            groundSrc.set(0, 0, groundTileWidth, groundTileHeight);
+        }
+
+        // Увеличиваем высоту в GROUND_SCALE раз относительно оригинала
+        groundDrawHeightPx = groundTileHeight * GROUND_SCALE;
+
+        // Линия пола = нижняя граница экрана
+        groundY = getHeight();
     }
 
     // Логика
@@ -105,11 +131,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         if (player != null) {
             player.update(dtSeconds);
-        }
 
-        if (player != null) {
-            float target = player.getX() - getWidth() * 0.5f; // держим игрока по центру экрана
-            camX += (target - camX) * CAM_LERP;               // плавное следование
+            float target = player.getX() - getWidth() * 0.5f;
+            camX += (target - camX) * CAM_LERP;
+
+            float playerHalfHeight = player.getDrawHeight() * 0.5f;
+            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * 0.42f);
         }
     }
 
@@ -119,6 +146,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if (canvas == null) return;
 
         drawLoopedBackground(canvas);
+        drawGround(canvas);
 
         if (gameLoop != null) {
             canvas.drawText(fpsText + "   " + upsText, 32, 64, hudPaint);
@@ -173,6 +201,30 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             Rect srcRect = new Rect(0, 0, bgTile.getWidth(), bgTile.getHeight());
             Rect dstRect = new Rect(x, 0, x + scaledWidth, scaledHeight);
             canvas.drawBitmap(bgTile, srcRect, dstRect, null);
+        }
+    }
+
+    private void drawGround(Canvas canvas) {
+        if (groundTile == null) return;
+
+        int screenWidth = getWidth();
+        int screenHeight = getHeight();
+
+        int destTop = screenHeight - groundDrawHeightPx + GROUND_OFFSET_Y;
+        int destBottom = screenHeight + GROUND_OFFSET_Y;
+
+        // Масштаб по высоте ×2
+        float scale = (float) groundDrawHeightPx / groundTileHeight;
+        int scaledTileWidth = Math.round(groundTileWidth * scale);
+
+        float scroll = camX * GROUND_PARALLAX;
+
+        int startX = (int) (-(scroll % scaledTileWidth));
+        if (startX > 0) startX -= scaledTileWidth;
+
+        for (int x = startX; x < screenWidth; x += scaledTileWidth) {
+            groundDst.set(x, destTop, x + scaledTileWidth, destBottom);
+            canvas.drawBitmap(groundTile, groundSrc, groundDst, null);
         }
     }
 
