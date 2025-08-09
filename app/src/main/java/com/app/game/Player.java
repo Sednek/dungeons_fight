@@ -10,7 +10,7 @@ public class Player {
 
     private float x, y;
     private final float speed;          // пикс/сек
-    private int dirX = 0;               // -1 влево, 1 вправо, 0 стоим
+    private int directionX = 0;               // -1 влево, 1 вправо, 0 стоим
     private int lastDirX = 1;           // куда смотрим, если стоим (1 = вправо)
 
     // спрайт-листы
@@ -51,7 +51,7 @@ public class Player {
     }
 
     public void setDirection(int dirX) {
-        this.dirX = dirX;
+        this.directionX = dirX;
         if (dirX != 0) lastDirX = dirX;
     }
 
@@ -63,9 +63,9 @@ public class Player {
 
     public void update(float dt) {
         // движение
-        x += dirX * speed * dt;
+        x += directionX * speed * dt;
 
-        boolean moving = dirX != 0;
+        boolean moving = directionX != 0;
         float dur = moving ? frameDurationRun : frameDurationIdle;
 
         frameTimer += dt;
@@ -77,9 +77,9 @@ public class Player {
 
     public void draw(Canvas canvas, float camX) {
         android.graphics.Bitmap sheet;
-        if (dirX < 0)      sheet = runLeft;
-        else if (dirX > 0) sheet = runRight;
-        else               sheet = (lastDirX < 0) ? idleLeft : idleRight;
+        if      (directionX < 0) sheet = runLeft;
+        else if (directionX > 0) sheet = runRight;
+        else                     sheet = (lastDirX < 0) ? idleLeft : idleRight;
 
         int sx = frameIndex * frameW;
         src.set(sx, 0, sx + frameW, frameH);

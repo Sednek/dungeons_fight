@@ -47,7 +47,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private static final int GROUND_SCALE = 2;
 
-    private static final int GROUND_OFFSET_Y = 70; // на сколько пикселей опущен тайл
+    private static final int GROUND_OFFSET_Y = 20; // на сколько пикселей опущен тайл
+
+    // т.к тайл персонажа 80px, а мы за основу берем серидину персонажа(40px)
+    // то надо смещать персонажа, чтобы ноги касались пола
+    private static final float PLAYER_OFFSET_FOR_GROUND =0.17f;
 
     private final Rect groundSrc = new Rect();
     private final Rect groundDst = new Rect();
@@ -102,7 +106,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         if (groundTile == null) {
-            groundTile = BitmapFactory.decodeResource(getResources(), R.drawable.ground_tile);
+            groundTile = BitmapFactory.decodeResource(getResources(), R.drawable.ground_tile_dark);
             groundTileWidth = groundTile.getWidth();
             groundTileHeight = groundTile.getHeight();
             groundSrc.set(0, 0, groundTileWidth, groundTileHeight);
@@ -136,7 +140,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             camX += (target - camX) * CAM_LERP;
 
             float playerHalfHeight = player.getDrawHeight() * 0.5f;
-            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * 0.42f);
+            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
         }
     }
 
