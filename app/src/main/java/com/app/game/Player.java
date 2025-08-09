@@ -40,12 +40,12 @@ public class Player {
         this.speed = speedPxPerSec;
         this.scale = scale;
 
-        idleLeft  = BitmapFactory.decodeResource(res, R.drawable.idle_left);
-        idleRight = BitmapFactory.decodeResource(res, R.drawable.idle_right);
-        runLeft   = BitmapFactory.decodeResource(res, R.drawable.run_left);
-        runRight  = BitmapFactory.decodeResource(res, R.drawable.run_right);
+        idleLeft  = scaleSheet(loadAlpha(res, R.drawable.idle_left),  scale);
+        idleRight = scaleSheet(loadAlpha(res, R.drawable.idle_right), scale);
+        runLeft   = scaleSheet(loadAlpha(res, R.drawable.run_left),   scale);
+        runRight  = scaleSheet(loadAlpha(res, R.drawable.run_right),  scale);
 
-        // считаем размеры кадра по первому листу
+        // считаем размеры кадра по первому (уже масштабированному) листу
         frameW = idleLeft.getWidth() / FRAMES;
         frameH = idleLeft.getHeight();
     }
@@ -58,8 +58,8 @@ public class Player {
     public float getX() { return x; }
     public void setX(float v) { x = v; }
     public void setY(float v) { y = v; }
-    public int getDrawWidth()  { return Math.round(frameW * scale); }
-    public int getDrawHeight() { return Math.round(frameH * scale); }
+    public int getDrawWidth()  { return frameW; }
+    public int getDrawHeight() { return frameH; }
 
     public void update(float dt) {
         // движение
@@ -84,12 +84,23 @@ public class Player {
         int sx = frameIndex * frameW;
         src.set(sx, 0, sx + frameW, frameH);
 
-        int dw = Math.round(frameW * scale);
-        int dh = Math.round(frameH * scale);
-        int dx = Math.round(x - camX - dw / 2f);
-        int dy = Math.round(y - dh / 2f);
-        dst.set(dx, dy, dx + dw, dy + dh);
+        int dx = Math.round(x - camX - frameW / 2f);
+        int dy = Math.round(y - frameH / 2f);
+        dst.set(dx, dy, dx + frameW, dy + frameH);
 
         canvas.drawBitmap(sheet, src, dst, null);
+    }
+
+    private static Bitmap loadAlpha(Resources res, int resId) {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inScaled = false;
+        o.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeResource(res, resId, o);
+    }
+
+    private static Bitmap scaleSheet(Bitmap src, float scale) {
+        int w = Math.max(1, Math.round(src.getWidth() * scale));
+        int h = Math.max(1, Math.round(src.getHeight() * scale));
+        return Bitmap.createScaledBitmap(src, w, h, false);
     }
 }
