@@ -69,7 +69,7 @@ public class Player {
         float dur = moving ? frameDurationRun : frameDurationIdle;
 
         frameTimer += dt;
-        if (frameTimer >= dur) {
+        while (frameTimer >= dur) {
             frameTimer -= dur;
             frameIndex = (frameIndex + 1) % FRAMES;
         }

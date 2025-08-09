@@ -3,93 +3,87 @@ package com.app.game;
 import android.graphics.Canvas;
 import android.view.SurfaceHolder;
 
-/**
- * Fixed 60 UPS + жесткий кап 60 FPS с точным frame pacing.
- * Рендер ровно каждые ~16.666 мс, без грубого sleep(16).
- */
 public class GameLoop extends Thread {
     private static final int TARGET_UPS = 60;
-    private static final long FIXED_DT_NS = 1_000_000_000L / TARGET_UPS;
+    private static final double DT_SEC = 1.0 / TARGET_UPS;
+    private static final double MAX_ACCUM_SEC = 0.25; // clamp to avoid spiral of death
+
     private final SurfaceHolder surfaceHolder;
     private final GameView gameView;
-    private volatile boolean running;
+    private volatile boolean running = false;
 
-    // РЕНДЕР КАП
-    private static final long TARGET_FRAME_NS = 16_666_667L; // 60 FPS
+    // Stats
+    private volatile int fps = 0;
+    private volatile int ups = 0;
 
-    private volatile int fps, ups;
-
-    public GameLoop(SurfaceHolder holder, GameView view) {
-        this.surfaceHolder = holder;
-        this.gameView = view;
+    public GameLoop(SurfaceHolder surfaceHolder, GameView gameView) {
+        this.surfaceHolder = surfaceHolder;
+        this.gameView = gameView;
+        setName("GameLoop");
     }
 
-    public void setRunning(boolean running) { this.running = running; }
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
+
     public int getFps() { return fps; }
     public int getUps() { return ups; }
 
     @Override
     public void run() {
-        long prev = System.nanoTime();
-        long acc = 0L;
+        long previousNs = System.nanoTime();
+        double accumulator = 0.0;
 
-        long secTimer = System.currentTimeMillis();
-        int frames = 0, updates = 0;
+        int frames = 0;
+        int updates = 0;
+        long secTimerMs = System.currentTimeMillis();
 
         while (running) {
-            long frameStart = System.nanoTime();
+            long nowNs = System.nanoTime();
+            double frameDeltaSec = (nowNs - previousNs) / 1_000_000_000.0;
+            previousNs = nowNs;
 
-            // ---- UPDATE (fixed timestep) ----
-            long now = frameStart;
-            long dt = now - prev;
-            prev = now;
-            acc += dt;
+            // clamp spikes
+            accumulator += Math.min(frameDeltaSec, MAX_ACCUM_SEC);
 
-            while (acc >= FIXED_DT_NS) {
-                gameView.update(FIXED_DT_NS / 1_000_000_000f);
+            // fixed updates
+            while (accumulator >= DT_SEC) {
+                gameView.update((float) DT_SEC);
                 updates++;
-                acc -= FIXED_DT_NS;
+                accumulator -= DT_SEC;
             }
 
-            // ---- RENDER ----
-            Canvas c = null;
-            try {
-                c = surfaceHolder.lockCanvas();
-                if (c != null) {
-                    synchronized (surfaceHolder) {
-                        gameView.draw(c);
-                    }
+            // render
+            Canvas canvas = surfaceHolder.lockCanvas();
+            if (canvas != null) {
+                try {
+                    gameView.draw(canvas);
+                } finally {
+                    surfaceHolder.unlockCanvasAndPost(canvas);
                 }
-            } finally {
-                if (c != null) surfaceHolder.unlockCanvasAndPost(c);
+                frames++;
             }
-            frames++;
 
-            // ---- STATS ----
-            long t = System.currentTimeMillis();
-            if (t - secTimer >= 1000) {
+            // publish stats each second
+            long nowMs = System.currentTimeMillis();
+            if (nowMs - secTimerMs >= 1000) {
                 fps = frames;
                 ups = updates;
                 frames = 0;
                 updates = 0;
-                secTimer += 1000;
+                secTimerMs += 1000;
             }
 
-            // ---- FRAME PACING (жёсткий 60 FPS) ----
-            long frameTime = System.nanoTime() - frameStart;
-            long waitNs = TARGET_FRAME_NS - frameTime;
-            if (waitNs > 0) {
-                // Сначала nanosleep, затем короткий spin до точного дедлайна
-                long end = System.nanoTime() + waitNs;
-                if (waitNs > 1_000_000) {
-                    try {
-                        // -0.5ms чтобы не «проспать» дедлайн
-                        Thread.sleep(0, (int) Math.min(waitNs - 500_000, 900_000));
-                    } catch (InterruptedException ignored) {}
-                }
-                while (System.nanoTime() < end) {
-                    // busy-wait final touch для ровного pacing
-                }
+            // (Optional) soft cap to ~60 FPS if device is too fast
+            // We can sleep a tiny bit to reduce CPU usage.
+            long frameTimeNs = System.nanoTime() - nowNs;
+            long targetFrameNs = (long)(1_000_000_000L / 60.0);
+            long remainingNs = targetFrameNs - frameTimeNs;
+            if (remainingNs > 200_000) { // >0.2ms
+                try {
+                    // sleep for a bit less than the remaining to avoid oversleeping
+                    Thread.sleep(0, (int)Math.min(remainingNs - 100_000, 900_000));
+                } catch (InterruptedException ignored) {}
             }
         }
     }

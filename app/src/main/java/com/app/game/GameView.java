@@ -22,8 +22,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     // HUD-краска и кэш строк
     private final android.graphics.Paint hudPaint = new android.graphics.Paint();
-    private String fpsText = "FPS: 0";
-    private String upsText = "UPS: 0";
+    private String fpsText = "";
+    private String upsText = "";
 
     private float circleX = 0f;
     private float speedPxPerFrameAt60 = 3.0f;
@@ -64,7 +64,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         hudPaint.setTextSize(48f);
         hudPaint.setAntiAlias(false);
 
-        gameLoop = new GameLoop(getHolder(), this);
+        // gameLoop will be created in surfaceCreated()
 
         setFocusable(true);
     }
@@ -153,7 +153,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         drawGround(canvas);
 
         if (gameLoop != null) {
-            canvas.drawText(fpsText + "   " + upsText, 32, 64, hudPaint);
+            canvas.drawText(fpsText + " " + upsText, 32, 64, hudPaint);
         }
 
         if (player != null) player.draw(canvas, camX);
