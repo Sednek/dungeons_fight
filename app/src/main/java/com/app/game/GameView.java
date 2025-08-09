@@ -40,7 +40,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     //Ground tile
     private Bitmap groundTile;
-    private Bitmap groundTileScaled;private int groundTileWidth, groundTileHeight;
+    private Bitmap groundTileScaled;
+    private int groundTileWidth, groundTileHeight;
 
     private int groundDrawHeightPx;
     private float groundY;
@@ -52,7 +53,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     // т.к тайл персонажа 80px, а мы за основу берем серидину персонажа(40px)
     // то надо смещать персонажа, чтобы ноги касались пола
-    private static final float PLAYER_OFFSET_FOR_GROUND =0.17f;
+    private static final float PLAYER_OFFSET_FOR_GROUND = 0.17f;
 
     private final Rect groundSrc = new Rect();
     private final Rect groundDst = new Rect();
@@ -110,7 +111,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             int screenH = getHeight();
             int srcW = bgTile.getWidth();
             int srcH = bgTile.getHeight();
-            bgW = srcW; bgH = srcH;
+            bgW = srcW;
+            bgH = srcH;
             float kbg = screenH / (float) srcH;
             bgScaledW = Math.max(1, Math.round(srcW * kbg));
             bgScaledH = screenH;
@@ -127,7 +129,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         // Увеличиваем высоту в GROUND_SCALE раз относительно оригинала
         groundDrawHeightPx = groundTileHeight * GROUND_SCALE;
 
-        
+
         // Pre-scale ground tile to desired on-screen height once
         if (groundTile != null) {
             float kg = groundDrawHeightPx / (float) groundTileHeight;
@@ -209,7 +211,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         int screenWidth = getWidth();
 
         int scroll = (int) (camX * BG_PARALLAX);
-        int startX = - (scroll % bgScaledW);
+        int startX = -(scroll % bgScaledW);
         if (startX > 0) startX -= bgScaledW;
 
         for (int x = startX; x < screenWidth + bgScaledW; x += bgScaledW) {
@@ -226,7 +228,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         int tileW = groundTileScaled.getWidth();
 
         int scroll = (int) (camX * GROUND_PARALLAX);
-        int startX = - (scroll % tileW);
+        int startX = -(scroll % tileW);
         if (startX > 0) startX -= tileW;
 
         for (int x = startX; x < screenWidth + tileW; x += tileW) {

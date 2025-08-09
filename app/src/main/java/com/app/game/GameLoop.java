@@ -26,8 +26,13 @@ public class GameLoop extends Thread {
         this.running = running;
     }
 
-    public int getFps() { return fps; }
-    public int getUps() { return ups; }
+    public int getFps() {
+        return fps;
+    }
+
+    public int getUps() {
+        return ups;
+    }
 
     @Override
     public void run() {
@@ -77,13 +82,14 @@ public class GameLoop extends Thread {
             // (Optional) soft cap to ~60 FPS if device is too fast
             // We can sleep a tiny bit to reduce CPU usage.
             long frameTimeNs = System.nanoTime() - nowNs;
-            long targetFrameNs = (long)(1_000_000_000L / 60.0);
+            long targetFrameNs = (long) (1_000_000_000L / 60.0);
             long remainingNs = targetFrameNs - frameTimeNs;
             if (remainingNs > 200_000) { // >0.2ms
                 try {
                     // sleep for a bit less than the remaining to avoid oversleeping
-                    Thread.sleep(0, (int)Math.min(remainingNs - 100_000, 900_000));
-                } catch (InterruptedException ignored) {}
+                    Thread.sleep(0, (int) Math.min(remainingNs - 100_000, 900_000));
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }

@@ -24,7 +24,7 @@ public class Player {
     private int frameIndex = 0;
     private float frameTimer = 0f;
     private float frameDurationIdle = 0.14f;  // сек на кадр в idle
-    private float frameDurationRun  = 0.09f;  // сек на кадр в беге
+    private float frameDurationRun = 0.09f;  // сек на кадр в беге
 
     private final Rect src = new Rect();
     private final Rect dst = new Rect();
@@ -33,17 +33,16 @@ public class Player {
     private final float scale;
 
 
-
     public Player(Resources res, float startX, float startY, float speedPxPerSec, float scale) {
         this.x = startX;
         this.y = startY;
         this.speed = speedPxPerSec;
         this.scale = scale;
 
-        idleLeft  = scaleSheet(loadAlpha(res, R.drawable.idle_left),  scale);
+        idleLeft = scaleSheet(loadAlpha(res, R.drawable.idle_left), scale);
         idleRight = scaleSheet(loadAlpha(res, R.drawable.idle_right), scale);
-        runLeft   = scaleSheet(loadAlpha(res, R.drawable.run_left),   scale);
-        runRight  = scaleSheet(loadAlpha(res, R.drawable.run_right),  scale);
+        runLeft = scaleSheet(loadAlpha(res, R.drawable.run_left), scale);
+        runRight = scaleSheet(loadAlpha(res, R.drawable.run_right), scale);
 
         // считаем размеры кадра по первому (уже масштабированному) листу
         frameW = idleLeft.getWidth() / FRAMES;
@@ -55,11 +54,25 @@ public class Player {
         if (dirX != 0) lastDirX = dirX;
     }
 
-    public float getX() { return x; }
-    public void setX(float v) { x = v; }
-    public void setY(float v) { y = v; }
-    public int getDrawWidth()  { return frameW; }
-    public int getDrawHeight() { return frameH; }
+    public float getX() {
+        return x;
+    }
+
+    public void setX(float v) {
+        x = v;
+    }
+
+    public void setY(float v) {
+        y = v;
+    }
+
+    public int getDrawWidth() {
+        return frameW;
+    }
+
+    public int getDrawHeight() {
+        return frameH;
+    }
 
     public void update(float dt) {
         // движение
@@ -77,9 +90,9 @@ public class Player {
 
     public void draw(Canvas canvas, float camX) {
         android.graphics.Bitmap sheet;
-        if      (directionX < 0) sheet = runLeft;
+        if (directionX < 0) sheet = runLeft;
         else if (directionX > 0) sheet = runRight;
-        else                     sheet = (lastDirX < 0) ? idleLeft : idleRight;
+        else sheet = (lastDirX < 0) ? idleLeft : idleRight;
 
         int sx = frameIndex * frameW;
         src.set(sx, 0, sx + frameW, frameH);
