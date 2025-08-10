@@ -29,8 +29,7 @@ public class GameLoop extends Thread {
         running = false;
         try {
             join();
-        } catch (InterruptedException ignored) {
-        }
+        } catch (InterruptedException ignored) {}
     }
 
     public void setRunning(boolean running) {
@@ -75,18 +74,23 @@ public class GameLoop extends Thread {
 
             // render
 
-            if (!surfaceHolder.getSurface().isValid()) {
-                continue;
-            }
-
-            Canvas canvas = surfaceHolder.lockCanvas();
-            if (canvas != null) {
-                try {
+            Canvas canvas = null;
+            try {
+                if (!surfaceHolder.getSurface().isValid()) {
+                    continue;
+                }
+                canvas = surfaceHolder.lockCanvas();
+                if (canvas == null) {
+                    continue;
+                }
+                synchronized (surfaceHolder) {
                     gameView.draw(canvas);
-                } finally {
-                    surfaceHolder.unlockCanvasAndPost(canvas);
                 }
                 frames++;
+            } finally {
+                if (canvas != null) {
+                    surfaceHolder.unlockCanvasAndPost(canvas);
+                }
             }
 
             // publish stats each second

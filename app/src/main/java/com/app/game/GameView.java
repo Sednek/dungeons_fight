@@ -63,9 +63,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         super(context);
         getHolder().addCallback(this);
 
-        hudPaint.setColor(android.graphics.Color.GREEN);
-        hudPaint.setTextSize(48f);
-        hudPaint.setAntiAlias(false);
+        hudPaint.setColor(Color.GREEN);
+        hudPaint.setTextSize(14f * getResources().getDisplayMetrics().scaledDensity);
+        hudPaint.setAntiAlias(true);
 
         setFocusable(true);
     }
@@ -96,7 +96,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if (bgTile == null) {
             bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
         }
-        // Предварительно масштабируем фон до высоты экрана один раз
+        // Предварительно масштабируем bg до высоты экрана один раз
         if (bgTile != null) {
             int screenH = getHeight();
             int srcW = bgTile.getWidth();
@@ -125,7 +125,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         groundDrawHeightPx = groundTileHeight * GROUND_SCALE;
 
 
-        // Pre-scale ground tile to desired on-screen height once
+        // Предварительно масштабируем тайл земли до высоты экрана один раз
         if (groundTile != null) {
             float kg = groundDrawHeightPx / (float) groundTileHeight;
             int gW = Math.max(1, Math.round(groundTileWidth * kg));
@@ -135,7 +135,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 groundTileScaled.recycle();
                 groundTileScaled = null;
             }
-
             groundTileScaled = Bitmap.createScaledBitmap(groundTile, gW, gH, false);
         }
         // Линия пола = нижняя граница экрана
@@ -145,10 +144,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         // Убиваем геймлупу, перед удалением, проверить сохраняемость новых данных если есть
-        if (gameLoop != null) {
-            gameLoop.requestStopAndJoin();
-            gameLoop = null;
-        }
+        stopLoop();
         // освобождение битмапов
         if (bgScaled != null) {
             bgScaled.recycle();
@@ -181,6 +177,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if (player != null) {
             player.update(dtSeconds);
 
+            //half-life камера
             float target = player.getX() - getWidth() * 0.5f;
             float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
             camX = k * camX + (1f - k) * target;
@@ -190,6 +187,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
         }
     }
+
 
     // Рисуем тут бгшку, тайл земли, потом счетчик фпса(в дальнейшем худ отладки) и игрока.
     @Override
@@ -266,7 +264,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     //Остановить gameLoop
-    //TODO: перенести возможно это в GameLoop
     public void stopLoop() {
         if (gameLoop != null) {
             gameLoop.requestStopAndJoin();
@@ -290,7 +287,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     public void restoreFrom(GameSnapshot s) {
         player.setPosition(s.playerX, s.playerY);
         camX = s.cameraX;
-        player.setLastDirection(s.playerLastDirection);
+        player.setLastDirX(s.playerLastDirection);
     }
 
 

@@ -53,7 +53,7 @@ public class Player {
     public int getLastDirection() {
         return lastDirX;
     }
-    public void setLastDirection(int lastDir){
+    public void setLastDirX(int lastDir){
         this.lastDirX = lastDir;
     }
 
