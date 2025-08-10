@@ -1,5 +1,6 @@
 package com.app.game;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -16,95 +17,158 @@ import androidx.annotation.NonNull;
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private GameLoop gameLoop;
+    private GameSnapshot pendingSnapshot;
 
+    //Player
+
+    //во сколько раз увеличить кадр спрайта на экране
+    private static final float PLAYER_SCALE_SIZE = 5f;
     private Player player;
 
 
-    private Bitmap background;
-    private Rect bgSrc, bgDst;
-
-
     // HUD-краска и кэш строк
-    private final android.graphics.Paint hudPaint = new android.graphics.Paint();
-    private String fpsText = "FPS: 0";
-    private String upsText = "UPS: 0";
+    private final Paint hudPaint = new Paint();
+    private String fpsText = "";
+    private String upsText = "";
 
-    private float circleX = 0f;
-    private float speedPxPerFrameAt60 = 3.0f;
+    // Камера
+    private static final float CAM_HALF_LIFE_SEC = 0.12f;
+    private float camX = 0f;
 
-    private float fps = 0;
+
+    // Background
+    private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
+    private Bitmap bgTile;     // seamless_bg.png
+    private Bitmap bgScaled;
+    private int bgScaledW;
+
+    //Ground tile
+
+    // т.к тайл персонажа 80px, а мы за основу берем серидину персонажа(40px)
+    // то надо смещать персонажа по пропорции, чтобы ноги касались пола
+    private static final float PLAYER_OFFSET_FOR_GROUND = 0.17f;
+    private static final float GROUND_PARALLAX = 1.0f;
+    private static final int GROUND_SCALE = 2;
+    private static final int GROUND_OFFSET_Y = 20; // на сколько пикселей опущен тайл
+
+    private Bitmap groundTile;
+    private Bitmap groundTileScaled;
+    private int groundTileWidth, groundTileHeight;
+    private int groundDrawHeightPx;
+    private float groundY;
+
+    private final Rect groundSrc = new Rect();
 
     public GameView(Context context) {
         super(context);
         getHolder().addCallback(this);
 
-        hudPaint.setColor(android.graphics.Color.GREEN);
-        hudPaint.setTextSize(48f);
-        hudPaint.setAntiAlias(false);
-
-        gameLoop = new GameLoop(getHolder(), this);
+        hudPaint.setColor(Color.GREEN);
+        hudPaint.setTextSize(14f * getResources().getDisplayMetrics().scaledDensity);
+        hudPaint.setAntiAlias(true);
 
         setFocusable(true);
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        // scale = во сколько раз увеличить кадр спрайта на экране
-        float scale = 10f;
-        player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, scale);
+    public void setPendingSnapshot(GameSnapshot snapshot) {
+        this.pendingSnapshot = snapshot;
+    }
 
-        gameLoop = new GameLoop(getHolder(), this);
+    @Override
+    public void surfaceCreated(@NonNull SurfaceHolder holder) {
+        player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, PLAYER_SCALE_SIZE);
+
+        float refreshRate = (getDisplay() != null) ? getDisplay().getRefreshRate() : 60f;
+
+        gameLoop = new GameLoop(getHolder(), this, refreshRate);
         gameLoop.setRunning(true);
         gameLoop.start();
-    }
 
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        if (gameLoop != null) {
-            gameLoop.setRunning(false);
-            boolean retry = true;
-            while (retry) {
-                try {
-                    gameLoop.join();
-                    retry = false;
-                } catch (InterruptedException ignored) {}
-            }
-        }
-
-        if (background != null) {
-            background.recycle();
-            background = null;
-            bgSrc = null;
-            bgDst = null;
+        if (pendingSnapshot != null) {
+            restoreFrom(pendingSnapshot);
+            pendingSnapshot = null;
         }
     }
-
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
-        if (background == null) {
-            background = BitmapFactory.decodeResource(getResources(), R.drawable.background_forest);
-            bgSrc = new Rect(0, 0, background.getWidth(), background.getHeight());
+        //Если бгтайл нету, то берем из ресурсов
+        if (bgTile == null) {
+            bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
+        }
+        // Предварительно масштабируем bg до высоты экрана один раз
+        if (bgTile != null) {
+            int screenH = getHeight();
+            int srcW = bgTile.getWidth();
+            int srcH = bgTile.getHeight();
+
+            float koeffBg = screenH / (float) srcH;
+
+            bgScaledW = Math.max(1, Math.round(srcW * koeffBg));
+
+            if (bgScaled != null) {
+                bgScaled.recycle();
+                bgScaled = null;
+            }
+
+            bgScaled = Bitmap.createScaledBitmap(bgTile, bgScaledW, screenH, false);
         }
 
-        float scale = Math.max(width / (float) background.getWidth(), height / (float) background.getHeight());
-        int w = Math.round(background.getWidth() * scale);
-        int h = Math.round(background.getHeight() * scale);
-        int left = (width - w) / 2;
-        int top  = (height - h) / 2;
-        bgDst = new Rect(left, top, left + w, top + h);
+        if (groundTile == null) {
+            groundTile = BitmapFactory.decodeResource(getResources(), R.drawable.ground_tile_dark);
+            groundTileWidth = groundTile.getWidth();
+            groundTileHeight = groundTile.getHeight();
+            groundSrc.set(0, 0, groundTileWidth, groundTileHeight);
+        }
+
+        // Увеличиваем высоту в GROUND_SCALE раз относительно оригинала
+        groundDrawHeightPx = groundTileHeight * GROUND_SCALE;
+
+
+        // Предварительно масштабируем тайл земли до высоты экрана один раз
+        if (groundTile != null) {
+            float kg = groundDrawHeightPx / (float) groundTileHeight;
+            int gW = Math.max(1, Math.round(groundTileWidth * kg));
+            int gH = Math.max(1, Math.round(groundTileHeight * kg));
+
+            if (groundTileScaled != null) {
+                groundTileScaled.recycle();
+                groundTileScaled = null;
+            }
+            groundTileScaled = Bitmap.createScaledBitmap(groundTile, gW, gH, false);
+        }
+        // Линия пола = нижняя граница экрана
+        groundY = getHeight();
+    }
+
+    @Override
+    public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+        // Убиваем геймлупу, перед удалением, проверить сохраняемость новых данных если есть
+        stopLoop();
+        // освобождение битмапов
+        if (bgScaled != null) {
+            bgScaled.recycle();
+            bgScaled = null;
+        }
+        if (bgTile != null) {
+            bgTile.recycle();
+            bgTile = null;
+        }
+        if (groundTileScaled != null) {
+            groundTileScaled.recycle();
+            groundTileScaled = null;
+        }
+        if (groundTile != null) {
+            groundTile.recycle();
+            groundTile = null;
+        }
+        if (player != null) {
+            player.dispose();
+        }
     }
 
     // Логика
     public void update(float dtSeconds) {
-        // Нормализуем скорость под фиксированный апдейт:
-        // если скорость «в пикселях на кадр при 60», то умножаем на 60*dt
-        circleX += speedPxPerFrameAt60 * (60f * dtSeconds);
-        if (circleX > getWidth()) circleX = 0f;
-
-
-        // при желании тут кэшируй строки HUD раз в N кадров, чтобы не формировать каждый кадр
         if (gameLoop != null) {
             fpsText = "FPS: " + gameLoop.getFps();
             upsText = "UPS: " + gameLoop.getUps();
@@ -112,29 +176,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         if (player != null) {
             player.update(dtSeconds);
+
+            //half-life камера
+            float target = player.getX() - getWidth() * 0.5f;
+            float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
+            camX = k * camX + (1f - k) * target;
+
+            float playerHalfHeight = player.getDrawHeight() * 0.5f;
+            //PLAYER_OFFSET_FOR_GROUND подобран эпирически под текущий спрайт. Если другой спрайт - высчитывать пропорцию
+            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
         }
     }
 
+
+    // Рисуем тут бгшку, тайл земли, потом счетчик фпса(в дальнейшем худ отладки) и игрока.
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
         if (canvas == null) return;
 
-        if (background != null && bgSrc != null && bgDst != null) {
-            canvas.drawBitmap(background, bgSrc, bgDst, null);
-        } else {
-            canvas.drawColor(Color.GRAY);
-        }
+        drawLoopedBackground(canvas);
+        drawGround(canvas);
 
         if (gameLoop != null) {
-            canvas.drawText(fpsText + "   " + upsText, 32, 64, hudPaint);
+            canvas.drawText(fpsText + " " + upsText, 32, 64, hudPaint);
         }
 
-        if (player != null) {
-            player.draw(canvas);
-        }
+        if (player != null) player.draw(canvas, camX);
     }
 
+    //Логика событий касания
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
@@ -155,5 +227,68 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
         return true;
     }
+
+    //Логика бесконечного бг
+    private void drawLoopedBackground(Canvas canvas) {
+        if (bgScaled == null) {
+            canvas.drawColor(Color.BLACK);
+            return;
+        }
+        int screenWidth = getWidth();
+
+        int scroll = (int) (camX * BG_PARALLAX);
+        int startX = -(scroll % bgScaledW);
+        if (startX > 0) startX -= bgScaledW;
+
+        for (int x = startX; x < screenWidth + bgScaledW; x += bgScaledW) {
+            canvas.drawBitmap(bgScaled, x, 0, null);
+        }
+    }
+
+    //Логика тайлов земли
+    private void drawGround(Canvas canvas) {
+        if (groundTileScaled == null) return;
+
+        int screenWidth = getWidth();
+        int destTop = getHeight() - groundDrawHeightPx + GROUND_OFFSET_Y;
+
+        int tileW = groundTileScaled.getWidth();
+
+        int scroll = (int) (camX * GROUND_PARALLAX);
+        int startX = -(scroll % tileW);
+        if (startX > 0) startX -= tileW;
+
+        for (int x = startX; x < screenWidth + tileW; x += tileW) {
+            canvas.drawBitmap(groundTileScaled, x, destTop, null);
+        }
+    }
+
+    //Остановить gameLoop
+    public void stopLoop() {
+        if (gameLoop != null) {
+            gameLoop.requestStopAndJoin();
+            gameLoop = null;
+        }
+    }
+
+    //Логика создания снапшота сохранения
+    //TODO: возможно вынести в отдельный класс при разрастании проекта
+    public GameSnapshot createSnapshot() {
+        GameSnapshot s = new GameSnapshot();
+        s.playerX = player.getX();
+        s.playerY = player.getY();
+        s.cameraX = camX;
+        s.playerLastDirection = player.getLastDirection();
+        return s;
+    }
+
+    //Логика взятия данных из снапшота сохранения
+    //Todo: также как и createSnapshot() - при разрастании проекта возможно вынести в отедльный класс
+    public void restoreFrom(GameSnapshot s) {
+        player.setPosition(s.playerX, s.playerY);
+        camX = s.cameraX;
+        player.setLastDirX(s.playerLastDirection);
+    }
+
 
 }
