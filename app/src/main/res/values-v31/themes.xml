@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.SoloLevelingSpizheno" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Цвет фона сплэша -->
+        <item name="android:windowSplashScreenBackground">#000000</item>
+
+        <!-- Иконка/логотип на сплэше (вектор или png в drawable) -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_studio_logo</item>
+
+        <!-- Необязательно: мелкая подпись бренда внизу -->
+        <item name="android:windowSplashScreenBrandingImage">@drawable/ic_branding_small</item>
+    </style>
+</resources>
