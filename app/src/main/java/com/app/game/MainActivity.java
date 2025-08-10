@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String SNAPSHOT_FILE = "game_snapshot.bin";
+
     private GameView gameView;
 
     private void enableImmersive() {
@@ -36,11 +38,34 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (gameView != null) gameView.stopLoop();
+        if (gameView != null) {
+            gameView.stopLoop();
+            saveSnapshot(gameView.createSnapshot());
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        GameSnapshot snapshot = loadSnapshot();
+        if (snapshot != null && gameView != null) {
+            gameView.setPendingSnapshot(snapshot);
+        }
+    }
+
+    private void saveSnapshot(GameSnapshot s) {
+        try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(
+                openFileOutput(SNAPSHOT_FILE, MODE_PRIVATE))) {
+            oos.writeObject(s);
+        } catch (java.io.IOException ignored) {}
+    }
+
+    private GameSnapshot loadSnapshot() {
+        try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(
+                openFileInput(SNAPSHOT_FILE))) {
+            return (GameSnapshot) ois.readObject();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

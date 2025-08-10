@@ -21,23 +21,19 @@ public class Player {
     private final int frameW, frameH;
 
     // анимация
+    private static final float FRAME_DURATION_IDLE = 0.14f;  // сек на кадр в idle
+    private static final float FRAME_DURATION_RUN = 0.09f;  // сек на кадр в беге
     private int frameIndex = 0;
     private float frameTimer = 0f;
-    private float frameDurationIdle = 0.14f;  // сек на кадр в idle
-    private float frameDurationRun = 0.09f;  // сек на кадр в беге
 
     private final Rect src = new Rect();
     private final Rect dst = new Rect();
-
-    // масштаб спрайта при выводе
-    private final float scale;
 
 
     public Player(Resources res, float startX, float startY, float speedPxPerSec, float scale) {
         this.x = startX;
         this.y = startY;
         this.speed = speedPxPerSec;
-        this.scale = scale;
 
         idleLeft = scaleSheet(loadAlpha(res, R.drawable.idle_left), scale);
         idleRight = scaleSheet(loadAlpha(res, R.drawable.idle_right), scale);
@@ -53,25 +49,32 @@ public class Player {
         this.directionX = dirX;
         if (dirX != 0) lastDirX = dirX;
     }
+    public int getLastDirection() {
+        return lastDirX;
+    }
+    public void setLastDirection(int lastDir){
+        this.lastDirX = lastDir;
+    }
 
     public float getX() {
         return x;
     }
 
-    public void setX(float v) {
-        x = v;
+    public float getY() {
+        return y;
     }
 
     public void setY(float v) {
         y = v;
     }
 
-    public int getDrawWidth() {
-        return frameW;
-    }
-
     public int getDrawHeight() {
         return frameH;
+    }
+
+    public void setPosition(float x, float y) {
+        this.x = x;
+        this.y = y;
     }
 
     public void update(float dt) {
@@ -79,7 +82,7 @@ public class Player {
         x += directionX * speed * dt;
 
         boolean moving = directionX != 0;
-        float dur = moving ? frameDurationRun : frameDurationIdle;
+        float dur = moving ? FRAME_DURATION_RUN : FRAME_DURATION_IDLE;
 
         frameTimer += dt;
         while (frameTimer >= dur) {

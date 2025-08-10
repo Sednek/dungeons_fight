@@ -16,17 +16,14 @@ import androidx.annotation.NonNull;
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private GameLoop gameLoop;
-
     private Player player;
+    private GameSnapshot pendingSnapshot;
 
 
     // HUD-краска и кэш строк
     private final android.graphics.Paint hudPaint = new android.graphics.Paint();
     private String fpsText = "";
     private String upsText = "";
-
-    private float circleX = 0f;
-    private float speedPxPerFrameAt60 = 3.0f;
 
     // Камера
     private float camX = 0f;
@@ -35,7 +32,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     // Background
     private Bitmap bgTile;     // seamless_bg.png
     private Bitmap bgScaled;
-    private int bgW, bgH, bgScaledW, bgScaledH;
+    private int bgScaledW;
     private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
 
     //Ground tile
@@ -56,7 +53,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private static final float PLAYER_OFFSET_FOR_GROUND = 0.17f;
 
     private final Rect groundSrc = new Rect();
-    private final Rect groundDst = new Rect();
 
     public GameView(Context context) {
         super(context);
@@ -66,9 +62,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         hudPaint.setTextSize(48f);
         hudPaint.setAntiAlias(false);
 
-        // gameLoop will be created in surfaceCreated()
-
         setFocusable(true);
+    }
+
+    public void setPendingSnapshot(GameSnapshot snapshot) {
+        this.pendingSnapshot = snapshot;
     }
 
     @Override
@@ -81,6 +79,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         gameLoop = new GameLoop(getHolder(), this, refreshRate);
         gameLoop.setRunning(true);
         gameLoop.start();
+
+        if (pendingSnapshot != null) {
+            restoreFrom(pendingSnapshot);
+            pendingSnapshot = null;
+        }
+
+        System.out.println("Surface created");
     }
 
 
@@ -107,9 +112,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             groundTile.recycle();
             groundTile = null;
         }
-        if (player != null){
+        if (player != null) {
             player.dispose();
         }
+        System.out.println("Surface destroyed");
     }
 
 
@@ -117,8 +123,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
         if (bgTile == null) {
             bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
-            bgW = bgTile.getWidth();
-            bgH = bgTile.getHeight();
         }
         // Pre-scale background to screen height once
         if (bgTile != null) {
@@ -126,20 +130,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             int srcW = bgTile.getWidth();
             int srcH = bgTile.getHeight();
 
-            bgW = srcW;
-            bgH = srcH;
-
             float kbg = screenH / (float) srcH;
 
             bgScaledW = Math.max(1, Math.round(srcW * kbg));
-            bgScaledH = screenH;
 
             if (bgScaled != null) {
                 bgScaled.recycle();
                 bgScaled = null;
             }
 
-            bgScaled = Bitmap.createScaledBitmap(bgTile, bgScaledW, bgScaledH, false);
+            bgScaled = Bitmap.createScaledBitmap(bgTile, bgScaledW, screenH, false);
         }
 
         if (groundTile == null) {
@@ -172,13 +172,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     // Логика
     public void update(float dtSeconds) {
-        // Нормализуем скорость под фиксированный апдейт:
-        // если скорость «в пикселях на кадр при 60», то умножаем на 60*dt
-        circleX += speedPxPerFrameAt60 * (60f * dtSeconds);
-        if (circleX > getWidth()) circleX = 0f;
-
-
-        // при желании тут кэшируй строки HUD раз в N кадров, чтобы не формировать каждый кадр
         if (gameLoop != null) {
             fpsText = "FPS: " + gameLoop.getFps();
             upsText = "UPS: " + gameLoop.getUps();
@@ -271,4 +264,21 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             gameLoop = null;
         }
     }
+
+    public GameSnapshot createSnapshot() {
+        GameSnapshot s = new GameSnapshot();
+        s.playerX = player.getX();
+        s.playerY = player.getY();
+        s.cameraX = camX;
+        s.playerLastDirection = player.getLastDirection();
+        return s;
+    }
+
+    public void restoreFrom(GameSnapshot s) {
+        player.setPosition(s.playerX, s.playerY);
+        camX = s.cameraX;
+        player.setLastDirection(s.playerLastDirection);
+    }
+
+
 }
