@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -16,41 +17,45 @@ import androidx.annotation.NonNull;
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private GameLoop gameLoop;
-    private Player player;
     private GameSnapshot pendingSnapshot;
+
+    //Player
+
+    //во сколько раз увеличить кадр спрайта на экране
+    private static final float PLAYER_SCALE_SIZE = 5f;
+    private Player player;
 
 
     // HUD-краска и кэш строк
-    private final android.graphics.Paint hudPaint = new android.graphics.Paint();
+    private final Paint hudPaint = new Paint();
     private String fpsText = "";
     private String upsText = "";
 
     // Камера
+    private static final float CAM_HALF_LIFE_SEC = 0.12f;
     private float camX = 0f;
-    private static final float CAM_LERP = 0.12f;   // плавность следования камеры
+
 
     // Background
+    private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
     private Bitmap bgTile;     // seamless_bg.png
     private Bitmap bgScaled;
     private int bgScaledW;
-    private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
 
     //Ground tile
+
+    // т.к тайл персонажа 80px, а мы за основу берем серидину персонажа(40px)
+    // то надо смещать персонажа по пропорции, чтобы ноги касались пола
+    private static final float PLAYER_OFFSET_FOR_GROUND = 0.17f;
+    private static final float GROUND_PARALLAX = 1.0f;
+    private static final int GROUND_SCALE = 2;
+    private static final int GROUND_OFFSET_Y = 20; // на сколько пикселей опущен тайл
+
     private Bitmap groundTile;
     private Bitmap groundTileScaled;
     private int groundTileWidth, groundTileHeight;
-
     private int groundDrawHeightPx;
     private float groundY;
-    private static final float GROUND_PARALLAX = 1.0f;
-
-    private static final int GROUND_SCALE = 2;
-
-    private static final int GROUND_OFFSET_Y = 20; // на сколько пикселей опущен тайл
-
-    // т.к тайл персонажа 80px, а мы за основу берем серидину персонажа(40px)
-    // то надо смещать персонажа, чтобы ноги касались пола
-    private static final float PLAYER_OFFSET_FOR_GROUND = 0.17f;
 
     private final Rect groundSrc = new Rect();
 
@@ -71,11 +76,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
-        // scale = во сколько раз увеличить кадр спрайта на экране
-        float scale = 5f;
-        player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, scale);
+        player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, PLAYER_SCALE_SIZE);
 
         float refreshRate = (getDisplay() != null) ? getDisplay().getRefreshRate() : 60f;
+
         gameLoop = new GameLoop(getHolder(), this, refreshRate);
         gameLoop.setRunning(true);
         gameLoop.start();
@@ -84,55 +88,23 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             restoreFrom(pendingSnapshot);
             pendingSnapshot = null;
         }
-
-        System.out.println("Surface created");
     }
-
-
-    @Override
-    public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
-        if (gameLoop != null) {
-            gameLoop.requestStopAndJoin();
-            gameLoop = null;
-        }
-        // освобождение больших битмапов
-        if (bgScaled != null) {
-            bgScaled.recycle();
-            bgScaled = null;
-        }
-        if (bgTile != null) {
-            bgTile.recycle();
-            bgTile = null;
-        }
-        if (groundTileScaled != null) {
-            groundTileScaled.recycle();
-            groundTileScaled = null;
-        }
-        if (groundTile != null) {
-            groundTile.recycle();
-            groundTile = null;
-        }
-        if (player != null) {
-            player.dispose();
-        }
-        System.out.println("Surface destroyed");
-    }
-
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+        //Если бгтайл нету, то берем из ресурсов
         if (bgTile == null) {
             bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
         }
-        // Pre-scale background to screen height once
+        // Предварительно масштабируем фон до высоты экрана один раз
         if (bgTile != null) {
             int screenH = getHeight();
             int srcW = bgTile.getWidth();
             int srcH = bgTile.getHeight();
 
-            float kbg = screenH / (float) srcH;
+            float koeffBg = screenH / (float) srcH;
 
-            bgScaledW = Math.max(1, Math.round(srcW * kbg));
+            bgScaledW = Math.max(1, Math.round(srcW * koeffBg));
 
             if (bgScaled != null) {
                 bgScaled.recycle();
@@ -166,8 +138,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
             groundTileScaled = Bitmap.createScaledBitmap(groundTile, gW, gH, false);
         }
-// Линия пола = нижняя граница экрана
+        // Линия пола = нижняя граница экрана
         groundY = getHeight();
+    }
+
+    @Override
+    public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+        // Убиваем геймлупу, перед удалением, проверить сохраняемость новых данных если есть
+        if (gameLoop != null) {
+            gameLoop.requestStopAndJoin();
+            gameLoop = null;
+        }
+        // освобождение битмапов
+        if (bgScaled != null) {
+            bgScaled.recycle();
+            bgScaled = null;
+        }
+        if (bgTile != null) {
+            bgTile.recycle();
+            bgTile = null;
+        }
+        if (groundTileScaled != null) {
+            groundTileScaled.recycle();
+            groundTileScaled = null;
+        }
+        if (groundTile != null) {
+            groundTile.recycle();
+            groundTile = null;
+        }
+        if (player != null) {
+            player.dispose();
+        }
     }
 
     // Логика
@@ -181,13 +182,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             player.update(dtSeconds);
 
             float target = player.getX() - getWidth() * 0.5f;
-            camX += (target - camX) * CAM_LERP;
+            float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
+            camX = k * camX + (1f - k) * target;
 
             float playerHalfHeight = player.getDrawHeight() * 0.5f;
+            //PLAYER_OFFSET_FOR_GROUND подобран эпирически под текущий спрайт. Если другой спрайт - высчитывать пропорцию
             player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
         }
     }
 
+    // Рисуем тут бгшку, тайл земли, потом счетчик фпса(в дальнейшем худ отладки) и игрока.
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
@@ -203,6 +207,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         if (player != null) player.draw(canvas, camX);
     }
 
+    //Логика событий касания
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -225,6 +230,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         return true;
     }
 
+    //Логика бесконечного бг
     private void drawLoopedBackground(Canvas canvas) {
         if (bgScaled == null) {
             canvas.drawColor(Color.BLACK);
@@ -241,6 +247,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    //Логика тайлов земли
     private void drawGround(Canvas canvas) {
         if (groundTileScaled == null) return;
 
@@ -258,6 +265,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    //Остановить gameLoop
+    //TODO: перенести возможно это в GameLoop
     public void stopLoop() {
         if (gameLoop != null) {
             gameLoop.requestStopAndJoin();
@@ -265,6 +274,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    //Логика создания снапшота сохранения
+    //TODO: возможно вынести в отдельный класс при разрастании проекта
     public GameSnapshot createSnapshot() {
         GameSnapshot s = new GameSnapshot();
         s.playerX = player.getX();
@@ -274,6 +285,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         return s;
     }
 
+    //Логика взятия данных из снапшота сохранения
+    //Todo: также как и createSnapshot() - при разрастании проекта возможно вынести в отедльный класс
     public void restoreFrom(GameSnapshot s) {
         player.setPosition(s.playerX, s.playerY);
         camX = s.cameraX;

@@ -8,19 +8,20 @@ import android.graphics.Rect;
 
 public class Player {
 
-    private float x, y;
-    private final float speed;          // пикс/сек
-    private int directionX = 0;               // -1 влево, 1 вправо, 0 стоим
-    private int lastDirX = 1;           // куда смотрим, если стоим (1 = вправо)
+    // Основные переменные игрока
+    private float x, y;         // координаты в мире(пока что y всегда одна)
+    private final float speed;  // пикс/сек
+    private int directionX = 0; // -1 влево, 1 вправо, 0 стоим
+    private int lastDirX = 1;   // куда смотрим, если стоим (1 = вправо, -1 влево)
 
-    // спрайт-листы
+    // Спрайт-листы
     private final Bitmap idleLeft, idleRight, runLeft, runRight;
 
-    // количество кадров в каждом листе
+    // Количество кадров в каждом листе
     private static final int FRAMES = 8;
     private final int frameW, frameH;
 
-    // анимация
+    // Анимация
     private static final float FRAME_DURATION_IDLE = 0.14f;  // сек на кадр в idle
     private static final float FRAME_DURATION_RUN = 0.09f;  // сек на кадр в беге
     private int frameIndex = 0;
@@ -91,8 +92,9 @@ public class Player {
         }
     }
 
+    // Рисуем спрайт нашего челика
     public void draw(Canvas canvas, float camX) {
-        android.graphics.Bitmap sheet;
+        Bitmap sheet;
         if (directionX < 0) sheet = runLeft;
         else if (directionX > 0) sheet = runRight;
         else sheet = (lastDirX < 0) ? idleLeft : idleRight;
@@ -107,6 +109,7 @@ public class Player {
         canvas.drawBitmap(sheet, src, dst, null);
     }
 
+    // Облегчаем наши пнгшки
     private static Bitmap loadAlpha(Resources res, int resId) {
         BitmapFactory.Options o = new BitmapFactory.Options();
         o.inScaled = false;
@@ -114,12 +117,14 @@ public class Player {
         return BitmapFactory.decodeResource(res, resId, o);
     }
 
+    //Скейлим на необходимое число наши спрайт-листы
     private static Bitmap scaleSheet(Bitmap src, float scale) {
         int w = Math.max(1, Math.round(src.getWidth() * scale));
         int h = Math.max(1, Math.round(src.getHeight() * scale));
         return Bitmap.createScaledBitmap(src, w, h, false);
     }
 
+    //Очищаем объекты с спрайтлистами
     public void dispose() {
         if (idleLeft != null && !idleLeft.isRecycled()) idleLeft.recycle();
         if (idleRight != null && !idleRight.isRecycled()) idleRight.recycle();
