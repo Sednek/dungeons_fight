@@ -1,4 +1,6 @@
-package com.app.game;
+package com.app.game.core;
+
+import com.app.game.R;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -13,6 +15,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import androidx.annotation.NonNull;
+
+import com.app.game.player.Player;
 
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 

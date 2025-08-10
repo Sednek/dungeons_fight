@@ -1,4 +1,6 @@
-package com.app.game;
+package com.app.game.player;
+
+import com.app.game.R;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -50,10 +52,12 @@ public class Player {
         this.directionX = dirX;
         if (dirX != 0) lastDirX = dirX;
     }
+
     public int getLastDirX() {
         return lastDirX;
     }
-    public void setLastDirX(int lastDir){
+
+    public void setLastDirX(int lastDir) {
         this.lastDirX = lastDir;
     }
 

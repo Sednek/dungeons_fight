@@ -1,4 +1,4 @@
-package com.app.game;
+package com.app.game.core;
 
 import android.graphics.Canvas;
 import android.view.SurfaceHolder;
@@ -29,7 +29,8 @@ public class GameLoop extends Thread {
         running = false;
         try {
             join();
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+        }
     }
 
     public void setRunning(boolean running) {
@@ -110,6 +111,7 @@ public class GameLoop extends Thread {
             if (remainingNs > 200_000) { // >0.2ms
                 try {
                     // sleep for a bit less than the remaining to avoid oversleeping
+                    //noinspection BusyWait
                     Thread.sleep(0, (int) Math.min(remainingNs - 100_000, 900_000));
                 } catch (InterruptedException ignored) {
                 }

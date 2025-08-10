@@ -1,4 +1,6 @@
-package com.app.game;
+package com.app.game.ui;
+
+import com.app.game.R;
 
 import android.content.Intent;
 import android.graphics.Color;

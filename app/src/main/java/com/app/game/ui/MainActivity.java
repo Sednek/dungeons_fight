@@ -1,4 +1,4 @@
-package com.app.game;
+package com.app.game.ui;
 
 import android.os.Build;
 import android.os.Bundle;
@@ -7,6 +7,9 @@ import android.view.View;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
+
+import com.app.game.core.GameSnapshot;
+import com.app.game.core.GameView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        if(Build.VERSION.SDK_INT >= 31){
+        if (Build.VERSION.SDK_INT >= 31) {
             SplashScreen.installSplashScreen(this);
         }
         super.onCreate(savedInstanceState);
@@ -70,7 +73,8 @@ public class MainActivity extends AppCompatActivity {
         try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(
                 openFileOutput(SNAPSHOT_FILE, MODE_PRIVATE))) {
             oos.writeObject(s);
-        } catch (java.io.IOException ignored) {}
+        } catch (java.io.IOException ignored) {
+        }
     }
 
     private GameSnapshot loadSnapshot() {
