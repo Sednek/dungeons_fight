@@ -278,7 +278,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         s.playerX = player.getX();
         s.playerY = player.getY();
         s.cameraX = camX;
-        s.playerLastDirection = player.getLastDirection();
+        s.playerLastDirection = player.getLastDirX();
         return s;
     }
 

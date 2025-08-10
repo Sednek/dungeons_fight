@@ -50,7 +50,7 @@ public class Player {
         this.directionX = dirX;
         if (dirX != 0) lastDirX = dirX;
     }
-    public int getLastDirection() {
+    public int getLastDirX() {
         return lastDirX;
     }
     public void setLastDirX(int lastDir){
