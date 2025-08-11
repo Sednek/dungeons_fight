@@ -17,11 +17,16 @@ import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 
 import com.app.game.player.Player;
+import com.app.game.shop.Shop;
 
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private GameLoop gameLoop;
     private GameSnapshot pendingSnapshot;
+
+    //WorldX
+    private static final float leftX = -1000f;
+    private static final float rightX = 2000;
 
     //Player
 
@@ -54,14 +59,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private static final float GROUND_PARALLAX = 1.0f;
     private static final int GROUND_SCALE = 2;
     private static final int GROUND_OFFSET_Y = 20; // на сколько пикселей опущен тайл
-
     private Bitmap groundTile;
     private Bitmap groundTileScaled;
     private int groundTileWidth, groundTileHeight;
     private int groundDrawHeightPx;
     private float groundY;
-
     private final Rect groundSrc = new Rect();
+
+    //Shop
+    private Shop shop;
+
 
     public GameView(Context context) {
         super(context);
@@ -81,6 +88,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
         player = new Player(getResources(), getWidth() / 2f, getHeight() / 2f, 500f, PLAYER_SCALE_SIZE);
+        if (shop == null) shop = new Shop();
+        shop.load(getResources(), R.drawable.shop);
 
         float refreshRate = (getDisplay() != null) ? getDisplay().getRefreshRate() : 60f;
 
@@ -143,6 +152,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
         // Линия пола = нижняя граница экрана
         groundY = getHeight();
+
+        shop.onSurfaceChanged(groundDrawHeightPx);
+
+        if (player != null) {
+            float playerHalfHeight = player.getDrawHeight() * 0.5f;
+            //PLAYER_OFFSET_FOR_GROUND подобран эпирически под текущий спрайт. Если другой спрайт - высчитывать пропорцию
+            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
+        }
     }
 
     @Override
@@ -166,6 +183,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             groundTile.recycle();
             groundTile = null;
         }
+        if (shop != null) {
+            shop.dispose();
+            shop = null;
+        }
+
         if (player != null) {
             player.dispose();
         }
@@ -186,9 +208,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
             camX = k * camX + (1f - k) * target;
 
-            float playerHalfHeight = player.getDrawHeight() * 0.5f;
-            //PLAYER_OFFSET_FOR_GROUND подобран эпирически под текущий спрайт. Если другой спрайт - высчитывать пропорцию
-            player.setY(groundY + GROUND_OFFSET_Y - groundDrawHeightPx - playerHalfHeight * PLAYER_OFFSET_FOR_GROUND);
+            if (player.getX() < leftX){
+                player.setPosition(leftX, player.getY());
+                player.setDirection(0);
+            } else if(player.getX() > rightX){
+                player.setPosition(rightX, player.getY());
+                player.setDirection(0);
+            }
         }
     }
 
@@ -201,6 +227,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         drawLoopedBackground(canvas);
         drawGround(canvas);
+
+        float groundTopY = groundY + GROUND_OFFSET_Y - groundDrawHeightPx * 0.63f;
+        if (shop != null) {
+            shop.draw(canvas, camX, groundTopY);
+        }
 
         if (gameLoop != null) {
             canvas.drawText(fpsText + " " + upsText, 32, 64, hudPaint);
