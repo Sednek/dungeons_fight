@@ -49,7 +49,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private static final float BG_PARALLAX = 0.3f; // фон движется медленнее камеры
     private Bitmap bgTile;     // seamless_bg.png
     private Bitmap bgScaled;
-    private int bgScaledW;
+    private Bitmap bgStrip;             // кэш-полоса фона
+    private int bgStripW, bgStripH;     // размеры кэш-полосы
 
     //Ground tile
 
@@ -65,6 +66,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private int groundDrawHeightPx;
     private float groundY;
     private final Rect groundSrc = new Rect();
+    private Bitmap groundStrip;         // кэш-полоса земли
+    private int groundStripW, groundStripH;
 
     //Shop
     private Shop shop;
@@ -117,7 +120,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
             float koeffBg = screenH / (float) srcH;
 
-            bgScaledW = Math.max(1, Math.round(srcW * koeffBg));
+            int bgScaledW = Math.max(1, Math.round(srcW * koeffBg));
 
             if (bgScaled != null) {
                 bgScaled.recycle();
@@ -125,6 +128,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             }
 
             bgScaled = Bitmap.createScaledBitmap(bgTile, bgScaledW, screenH, false);
+            rebuildBgStripIfNeeded();
         }
 
         if (groundTile == null) {
@@ -149,6 +153,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 groundTileScaled = null;
             }
             groundTileScaled = Bitmap.createScaledBitmap(groundTile, gW, gH, false);
+            rebuildGroundStripIfNeeded();
         }
         // Линия пола = нижняя граница экрана
         groundY = getHeight();
@@ -230,7 +235,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         float groundTopY = groundY + GROUND_OFFSET_Y - groundDrawHeightPx * 0.63f;
         if (shop != null) {
-            shop.draw(canvas, camX, groundTopY);
+            shop.draw(canvas, camX, (int) groundTopY);
         }
 
         if (gameLoop != null) {
@@ -265,38 +270,92 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     //Логика бесконечного бг
     private void drawLoopedBackground(Canvas canvas) {
-        if (bgScaled == null) {
-            canvas.drawColor(Color.BLACK);
+        if (bgStrip == null || bgStrip.isRecycled()) {
+            // запасной вариант — однотонный фон или прежний код
+            canvas.drawColor(0xFF000000);
             return;
         }
-        int screenWidth = getWidth();
 
+        int tileW = bgScaled.getWidth();
         int scroll = (int) (camX * BG_PARALLAX);
-        int startX = -(scroll % bgScaledW);
-        if (startX > 0) startX -= bgScaledW;
+        // смещение в диапазоне [-tileW, 0]
+        int offsetX = -(scroll % tileW);
+        if (offsetX > 0) offsetX -= tileW;
 
-        for (int x = startX; x < screenWidth + bgScaledW; x += bgScaledW) {
-            canvas.drawBitmap(bgScaled, x, 0, null);
-        }
+        // полоса шире экрана на 1 тайл — хватает одного вызова
+        canvas.drawBitmap(bgStrip, offsetX, 0, null);
     }
 
     //Логика тайлов земли
     private void drawGround(Canvas canvas) {
-        if (groundTileScaled == null) return;
-
-        int screenWidth = getWidth();
-        int destTop = getHeight() - groundDrawHeightPx + GROUND_OFFSET_Y;
+        if (groundStrip == null || groundStrip.isRecycled()) return;
 
         int tileW = groundTileScaled.getWidth();
-
         int scroll = (int) (camX * GROUND_PARALLAX);
-        int startX = -(scroll % tileW);
-        if (startX > 0) startX -= tileW;
+        int offsetX = -(scroll % tileW);
+        if (offsetX > 0) offsetX -= tileW;
 
-        for (int x = startX; x < screenWidth + tileW; x += tileW) {
-            canvas.drawBitmap(groundTileScaled, x, destTop, null);
+        int destTop = getHeight() - groundDrawHeightPx + GROUND_OFFSET_Y;
+        canvas.drawBitmap(groundStrip, offsetX, destTop, null);
+    }
+
+    private void rebuildBgStripIfNeeded() {
+        if (bgScaled == null || bgScaled.isRecycled()) {
+            bgStrip = null;
+            return;
+        }
+        int screenW = getWidth();
+        int screenH = getHeight();
+        if (screenW <= 0 || screenH <= 0) return;
+
+        int tileW = bgScaled.getWidth();
+        int tileH = bgScaled.getHeight();
+
+        int desiredW = screenW + tileW;   // запас на 1 тайл, чтобы всегда хватало на сдвиг
+
+        if (bgStrip != null && bgStripW == desiredW && bgStripH == tileH && !bgStrip.isRecycled())
+            return;
+
+        if (bgStrip != null && !bgStrip.isRecycled()) bgStrip.recycle();
+        bgStrip = Bitmap.createBitmap(desiredW, tileH, Bitmap.Config.ARGB_8888);
+        bgStripW = desiredW;
+        bgStripH = tileH;
+
+        Canvas c = new Canvas(bgStrip);
+        // заполняем полосу фоновой плиткой
+        for (int x = 0; x < bgStripW; x += tileW) {
+            c.drawBitmap(bgScaled, x, 0, null);
         }
     }
+
+    private void rebuildGroundStripIfNeeded() {
+        if (groundTileScaled == null || groundTileScaled.isRecycled()) {
+            groundStrip = null;
+            return;
+        }
+        int screenW = getWidth();
+        int screenH = getHeight();
+        if (screenW <= 0 || screenH <= 0) return;
+
+        int tileW = groundTileScaled.getWidth();
+        int tileH = groundTileScaled.getHeight();
+
+        int desiredW = screenW + tileW;   // запас на 1 тайл
+
+        if (groundStrip != null && groundStripW == desiredW && groundStripH == tileH && !groundStrip.isRecycled())
+            return;
+
+        if (groundStrip != null && !groundStrip.isRecycled()) groundStrip.recycle();
+        groundStrip = Bitmap.createBitmap(desiredW, tileH, Bitmap.Config.ARGB_8888);
+        groundStripW = desiredW;
+        groundStripH = tileH;
+
+        Canvas c = new Canvas(groundStrip);
+        for (int x = 0; x < groundStripW; x += tileW) {
+            c.drawBitmap(groundTileScaled, x, 0, null);
+        }
+    }
+
 
     //Остановить gameLoop
     public void stopLoop() {
