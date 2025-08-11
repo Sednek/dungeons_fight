@@ -276,6 +276,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             return;
         }
 
+        if (bgScaled == null || bgScaled.isRecycled()) return;
         int tileW = bgScaled.getWidth();
         int scroll = (int) (camX * BG_PARALLAX);
         // смещение в диапазоне [-tileW, 0]
@@ -290,6 +291,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private void drawGround(Canvas canvas) {
         if (groundStrip == null || groundStrip.isRecycled()) return;
 
+        if (groundTileScaled == null || groundTileScaled.isRecycled()) return;
         int tileW = groundTileScaled.getWidth();
         int scroll = (int) (camX * GROUND_PARALLAX);
         int offsetX = -(scroll % tileW);
