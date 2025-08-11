@@ -2,6 +2,7 @@ package com.app.game.ui;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.activity.OnBackPressedCallback;
@@ -55,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         if (gameView != null) {
-            gameView.stopLoop();
             saveSnapshot(gameView.createSnapshot());
         }
     }
@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
                 openFileInput(SNAPSHOT_FILE))) {
             return (GameSnapshot) ois.readObject();
         } catch (Exception e) {
+            Log.e("GameSnapshot", "Error open save file: " + e.getMessage());
             return null;
         }
     }

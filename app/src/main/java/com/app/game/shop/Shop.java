@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Rect;
+import android.util.Log;
 
 public class Shop {
     // Параметры (можно сделать сеттерами, если понадобится)
@@ -21,9 +22,16 @@ public class Shop {
 
     /** Однократно загрузить исходный арт (на старте/при первом surfaceCreated) */
     public void load(Resources res, int drawableId) {
-        if (srcBitmap == null) {
-            srcBitmap = BitmapFactory.decodeResource(res, drawableId);
-            srcRect.set(0, 0, srcBitmap.getWidth(), srcBitmap.getHeight());
+        try {
+            if (srcBitmap == null) {
+                srcBitmap = BitmapFactory.decodeResource(res, drawableId);
+                if (srcBitmap == null) {
+                    throw new Exception("Error while loading shop image.");
+                }
+                srcRect.set(0, 0, srcBitmap.getWidth(), srcBitmap.getHeight());
+            }
+        } catch (Exception e) {
+            Log.e("Shop", "Error process file: " + e.getMessage());
         }
     }
 
