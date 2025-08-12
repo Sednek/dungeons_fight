@@ -77,6 +77,17 @@ public class Player {
         return frameH;
     }
 
+    public int getDrawWidth() {
+        return frameW;
+    }
+
+    /**
+     * Пивот по X (центр кадра)
+     */
+    public float getPivotX() {
+        return frameW * 0.5f;
+    }
+
     public void setPosition(float x, float y) {
         this.x = x;
         this.y = y;

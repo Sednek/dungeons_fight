@@ -10,6 +10,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -24,9 +25,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
     private GameSnapshot pendingSnapshot;
 
+    private int screenWidth;
+    private int screenHeight;
+
     //WorldX
     private static final float leftX = -1000f;
-    private static final float rightX = 2000;
+    private static final float rightX = 3000f;
 
     //Player
 
@@ -108,6 +112,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+        screenWidth = width;
+        screenHeight = height;
+
+        camX = player.getX() - screenWidth * 0.5f;
+        camX = clampCameraLeft(camX);
+
         //Если бгтайл нету, то берем из ресурсов
         if (bgTile == null) {
             bgTile = BitmapFactory.decodeResource(getResources(), R.drawable.seamless_bg);
@@ -209,16 +219,23 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             player.update(dtSeconds);
 
             //half-life камера
-            float target = player.getX() - getWidth() * 0.5f;
-            float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
-            camX = k * camX + (1f - k) * target;
+            final float targetLeft = player.getX() - screenWidth * 0.5f; // целимся держать игрока по центру
+            final float k = (float) Math.pow(0.5, dtSeconds / CAM_HALF_LIFE_SEC);
+            camX = k * camX + (1f - k) * targetLeft;
 
-            if (player.getX() < leftX){
-                player.setPosition(leftX, player.getY());
-                player.setDirection(0);
-            } else if(player.getX() > rightX){
-                player.setPosition(rightX, player.getY());
-                player.setDirection(0);
+            camX = clampCameraLeft(camX);
+
+            int playerW = player.getDrawWidth();
+            float half = playerW * 0.1f;
+
+            float minCenterX = leftX + half;
+            float maxCenterX = rightX - half;
+
+            float px = player.getX();
+            if (px < minCenterX) {
+                player.setPosition(minCenterX, player.getY());
+            } else if (px > maxCenterX) {
+                player.setPosition(maxCenterX, player.getY());
             }
         }
     }
@@ -356,6 +373,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         for (int x = 0; x < groundStripW; x += tileW) {
             c.drawBitmap(groundTileScaled, x, 0, null);
         }
+    }
+
+    private float clampCameraLeft(float value) {
+        // Если мир уже уже/равен ширине экрана — фиксируй «центр» мира
+        if ((rightX - leftX) <= screenWidth) {
+            return (leftX + rightX) * 0.5f - (screenWidth * 0.5f);
+        }
+
+        // Диапазон допустимых положений ЛЕВОЙ грани камеры
+        final float minLeft = leftX;                 // левее — левая граница войдёт в экран
+        final float maxLeft = rightX - screenWidth;  // правее — правая граница войдёт в экран
+
+        // Небольшой гистерезис от дрожания на пиксель
+        final float epsilon = 0.5f;
+
+        if (value < minLeft) return minLeft - epsilon;
+        if (value > maxLeft) return maxLeft + epsilon;
+        return value;
     }
 
 
